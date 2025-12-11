@@ -1,0 +1,106 @@
+01: gender revenue
+Select
+	gender,
+	SUM(purchase_amount) as revenue
+From customer
+Group by gender
+
+-- 02: discount but still spend more than the average purchase amount
+Select
+	customer_id,
+	purchase_amount
+From customer
+where discount_applied = 'Yes' AND purchase_amount >= (Select AVG(purchase_amount) From customer)
+
+-- 03: top 5 products with the highest review rating?
+Select
+	item_purchased,
+	ROUND(AVG(review_rating::numeric),2) as "Average Product Rating"
+From customer
+Group By item_purchased
+Order By AVG(review_rating) desc
+Limit 5;
+
+-- 04: compare the average Purchase Amounts between standard and express shiping.
+Select
+	shipping_type,
+	ROUND(AVG(purchase_amount),2)
+From customer
+Where shipping_type in ('Standard','Express')
+Group By shipping_type
+
+-- 05: Do subscribed customer spend more? compare average spend and total_revenue 
+-- between subscribers and non-subscribers. 
+Select
+	subscription_status,
+	COUNT(customer_id) as total_customers,
+	ROUND(AVG(purchase_amount),2) as avg_spend,
+	ROUND(SUM(purchase_amount),2) as total_revenue
+From customer
+Group By subscription_status
+Order By total_revenue, avg_spend
+
+-- 06: 5 products have the highest percentage of purchase with discounts applied
+Select
+	item_purchased,
+	ROUND(100* SUM(CASE WHEN discount_applied = 'Yes' THEN 1 Else 0 END)/COUNT(*),2) as discount_rate
+From customer
+Group By item_purchased
+Order By discount_rate desc
+Limit 5;
+
+-- 07: Segment customers into New, Returning, and Loyal on their total number of previous purchases,
+-- and show the count of each segment.
+-- with customer_type as (
+-- select 
+	customer_id, previous_purchases,
+	CASE
+		WHEN previous_purchases = 1 THEN 'New'
+		WHEN previous_purchases BETWEEN 2 AND 10 THEN 'Returning'
+		ELSE 'Loyal'
+		END as customer_segment
+From customer
+)
+
+Select
+	customer_segment,
+	COUNT(*) as "Number of Customers"
+From customer_type
+Group By customer_segment
+
+-- 08: what are the top 3 most purchased products within each category?
+-- with item_counts as (
+	Select
+		category,
+		item_purchased,
+		COUNT(customer_id) as total_orders,
+		ROW_NUMBER() OVER(
+			PARTITION By category ORDER By COUNT(customer_id) Desc
+		) as item_rank
+		From customer
+		Group By category, item_purchased
+)
+
+Select
+	item_rank,
+	category,
+	item_purchased,
+	total_orders
+From item_counts
+Where item_rank <= 3;
+
+-- 09: Are customers who are repeat buyers (more than 5 previous purchases) also likely to subscribe?
+Select
+	subscription_status,
+	COUNT(customer_id) as repeat_buyers
+From customer
+Where previous_purchases > 5
+Group By subscription_status
+
+-- 10: What is the revenue contribution of each age group?
+Select
+	age_group,
+	SUM(purchase_amount) as total_revenue
+From customer
+Group By age_group
+Order by total_revenue desc;
